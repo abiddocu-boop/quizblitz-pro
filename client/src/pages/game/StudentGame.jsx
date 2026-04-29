@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../../socket';
 import Timer from '../../components/game/Timer';
@@ -10,6 +10,7 @@ const OPT_CLS = ['opt-a','opt-b','opt-c','opt-d'];
 
 export default function StudentGame() {
   const navigate = useNavigate();
+  const nameRef = useRef('');
   const [phase, setPhase] = useState('join');
   const [pin, setPin] = useState('');
   const [name, setName] = useState('');
@@ -28,27 +29,36 @@ export default function StudentGame() {
   const [isLastQ, setIsLastQ] = useState(false);
   const [explanation, setExplanation] = useState('');
   const [timerKey, setTimerKey] = useState(0);
-  const [nameRef, setNameRef] = useState('');
 
   useEffect(() => {
     socket.connect();
-    socket.on('join:success', ({ pin: p, quizTitle: t, playerName: n }) => { setPin(p); setQuizTitle(t); setNameRef(n); setJoining(false); setPhase('lobby'); });
+    socket.on('join:success', ({ pin: p, quizTitle: t, playerName: n }) => {
+      setPin(p); setQuizTitle(t);
+      nameRef.current = n;
+      setJoining(false); setPhase('lobby');
+    });
     socket.on('join:error', ({ message }) => { setJoinError(message); setJoining(false); });
     socket.on('lobby:update', ({ players: pl }) => setPlayers(pl));
-    socket.on('question:start', ({ question: q }) => { setQuestion(q); setSelected(null); setShortAns(''); setAnsResult(null); setCorrectIdx(null); setExplanation(''); setTimerKey(k=>k+1); setPhase('question'); });
-    socket.on('answer:result', ({ correct, pointsEarned, correctOptionIndex }) => { setAnsResult({ correct, pointsEarned }); setCorrectIdx(correctOptionIndex); setPhase('answered'); });
+    socket.on('question:start', ({ question: q }) => {
+      setQuestion(q); setSelected(null); setShortAns('');
+      setAnsResult(null); setCorrectIdx(null); setExplanation('');
+      setTimerKey(k=>k+1); setPhase('question');
+    });
+    socket.on('answer:result', ({ correct, pointsEarned, correctOptionIndex }) => {
+      setAnsResult({ correct, pointsEarned }); setCorrectIdx(correctOptionIndex); setPhase('answered');
+    });
     socket.on('question:end', ({ correctOptionIndex, leaderboard: lb, isLastQuestion, explanation: exp }) => {
       setCorrectIdx(correctOptionIndex); setLeaderboard(lb); setIsLastQ(isLastQuestion); setExplanation(exp||'');
-      const me = lb.find(p => p.name === nameRef);
-      const rank = lb.findIndex(p => p.name === nameRef) + 1;
+      const me = lb.find(p => p.name === nameRef.current);
+      const rank = lb.findIndex(p => p.name === nameRef.current) + 1;
       if (me) setMyScore(me.score);
       if (rank > 0) setMyRank(rank);
       setPhase('results');
     });
     socket.on('game:ended', ({ leaderboard: lb }) => {
       setLeaderboard(lb);
-      const me = lb.find(p => p.name === nameRef);
-      const rank = lb.findIndex(p => p.name === nameRef) + 1;
+      const me = lb.find(p => p.name === nameRef.current);
+      const rank = lb.findIndex(p => p.name === nameRef.current) + 1;
       if (me) setMyScore(me.score);
       if (rank > 0) setMyRank(rank);
       setPhase('ended');
@@ -58,7 +68,7 @@ export default function StudentGame() {
       ['join:success','join:error','lobby:update','question:start','answer:result','question:end','game:ended','host:disconnected'].forEach(e=>socket.off(e));
       socket.disconnect();
     };
-  }, [nameRef, navigate]);
+  }, [navigate]);
 
   const handleJoin = useCallback(e => {
     e.preventDefault();
@@ -67,7 +77,7 @@ export default function StudentGame() {
     if (cp.length !== 6) return setJoinError('PIN must be 6 digits.');
     if (cn.length < 2) return setJoinError('Name must be at least 2 characters.');
     setJoinError(''); setJoining(true);
-    setNameRef(cn);
+    nameRef.current = cn;
     socket.emit('player:join', { pin: cp, name: cn });
   }, [pin, name]);
 
@@ -94,7 +104,6 @@ export default function StudentGame() {
     </div>
   );
 
-  /* JOIN */
   if (phase === 'join') return (
     <div className="page-center">
       {BG}
@@ -123,7 +132,6 @@ export default function StudentGame() {
     </div>
   );
 
-  /* LOBBY */
   if (phase === 'lobby') return (
     <div className="page-center" style={{background:'var(--bg)'}}>
       <div style={{width:'100%',maxWidth:440,textAlign:'center'}}>
@@ -148,7 +156,6 @@ export default function StudentGame() {
     </div>
   );
 
-  /* QUESTION */
   if (phase === 'question' && question) return (
     <div className="game-layout">
       <div className="game-topbar">
@@ -188,7 +195,6 @@ export default function StudentGame() {
     </div>
   );
 
-  /* ANSWERED — waiting */
   if (phase === 'answered') {
     const correct = ansResult?.correct;
     return (
@@ -211,7 +217,6 @@ export default function StudentGame() {
     );
   }
 
-  /* RESULTS */
   if (phase === 'results') {
     const correct = ansResult?.correct;
     const optLabel = correctIdx!==null&&question?.options?.[correctIdx]?`${OPT_LABELS[correctIdx]}: ${question.options[correctIdx].text}`:null;
@@ -234,7 +239,7 @@ export default function StudentGame() {
           </div></div>
           <div className="card anim-fade-up delay-1"><div className="card-body">
             <h4 className="t-title" style={{marginBottom:'.875rem'}}>Leaderboard</h4>
-            <Leaderboard players={leaderboard.slice(0,8)} showDelta highlightName={nameRef}/>
+            <Leaderboard players={leaderboard.slice(0,8)} showDelta highlightName={nameRef.current}/>
           </div></div>
           {isLastQ&&<p className="t-xs text-muted text-center">Last question — final results coming!</p>}
         </div>
@@ -242,7 +247,6 @@ export default function StudentGame() {
     );
   }
 
-  /* ENDED */
   if (phase === 'ended') return (
     <div className="page-center" style={{background:'var(--bg)',padding:'1.5rem'}}>
       <div style={{width:'100%',maxWidth:480}}>
@@ -253,7 +257,7 @@ export default function StudentGame() {
         </div>
         <div className="card anim-fade-up delay-1" style={{marginBottom:'1rem'}}><div className="card-body">
           <h4 className="t-title" style={{marginBottom:'.875rem'}}>Final Leaderboard</h4>
-          <Leaderboard players={leaderboard} highlightName={nameRef}/>
+          <Leaderboard players={leaderboard} highlightName={nameRef.current}/>
         </div></div>
         <button className="btn btn-primary btn-full btn-lg anim-fade-up delay-2" onClick={()=>navigate('/join')}>Play Again</button>
       </div>
