@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const cors       = require('cors');
 const rateLimit  = require('express-rate-limit');
 
-const { connectDB }        = require('./config/db');
+const connectDB            = require('./config/db');
 const authRoutes           = require('./routes/auth');
 const quizRoutes           = require('./routes/quizzes');
 const { registerHandlers } = require('./socket/handlers');
