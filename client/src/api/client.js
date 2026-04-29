@@ -19,8 +19,9 @@ export const api = {
   patch:  (path, body) => request(path, { method: 'PATCH',  body: JSON.stringify(body) }),
   delete: (path)       => request(path, { method: 'DELETE' }),
 };
+
 export const authAPI = {
-  me:       ()     => api.get('/auth/me'),
-  login:    (data) => api.post('/auth/login', data),
-  register: (data) => api.post('/auth/register', data),
+  me:       ()     => request('/auth/me'),
+  login:    (data) => request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  register: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 };
