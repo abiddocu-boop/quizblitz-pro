@@ -18,7 +18,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     const res = await authAPI.login({ email, password });
-    const { token, user: u } = res.data;
+    const { token, user: u } = res;
     localStorage.setItem('qb_token', token);
     setUser(u);
     return u;
@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
 
   const register = useCallback(async (data) => {
     const res = await authAPI.register(data);
-    const { token, user: u } = res.data;
+    const { token, user: u } = res;
     localStorage.setItem('qb_token', token);
     setUser(u);
     return u;
