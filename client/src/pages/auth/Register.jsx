@@ -15,7 +15,10 @@ export default function Register() {
     e.preventDefault();
     if (form.password.length < 8) return setError('Password must be at least 8 characters.');
     setBusy(true);
-    try { await register(form.name, form.email, form.password, form.institution); navigate('/dashboard'); }
+    try {
+      await register({ name: form.name, email: form.email, password: form.password, organization: form.institution });
+      navigate('/dashboard');
+    }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
